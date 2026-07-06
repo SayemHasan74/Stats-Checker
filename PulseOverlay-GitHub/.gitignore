@@ -1,0 +1,8 @@
+bin/
+obj/
+Deliverables/
+.vs/
+*.user
+*.suo
+*.nupkg
+*.log
