@@ -56,6 +56,9 @@ public sealed class MetricStrip : Border
             _panel.Children.Add(value); _values.Add((value, metric));
         }
         Update(_snapshot);
+        // Metric removal must invalidate this outer border immediately as well as
+        // its child panel, so hosts do not reuse the previous strip width.
+        InvalidateMeasure();
     }
 
     public void Update(MetricSnapshot snapshot)

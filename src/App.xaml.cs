@@ -16,10 +16,21 @@ public partial class App : System.Windows.Application
     private Forms.NotifyIcon _tray = null!;
     private HwndSource? _hotkeyWindow;
     private int _updatePending;
+    private Mutex? _instanceMutex;
+    private bool _ownsInstance;
+    private static readonly uint ShowSettingsMessage = RegisterWindowMessage("PulseOverlay.ShowSettings");
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        _instanceMutex = new Mutex(true, @"Local\PulseOverlay.SingleInstance", out _ownsInstance);
+        if (!_ownsInstance)
+        {
+            // Reopening the shortcut should reveal settings, never draw a second strip.
+            PostMessage(new nint(0xffff), ShowSettingsMessage, 0, 0);
+            Shutdown();
+            return;
+        }
         _settings = SettingsService.Load();
         _settingsWindow = new MainWindow(_settings);
         _overlay = new OverlayWindow(); _overlay.Show(); _overlay.Apply(_settings);
@@ -69,6 +80,7 @@ public partial class App : System.Windows.Application
 
     private nint HotkeyHook(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
+        if ((uint)msg == ShowSettingsMessage) { OpenSettings(); handled = true; }
         if (msg == 0x0312 && wParam == 1) { ToggleOverlay(); handled = true; }
         return 0;
     }
@@ -80,7 +92,15 @@ public partial class App : System.Windows.Application
         _settingsWindow.Exit(); _overlay.Close(); Shutdown();
     }
 
-    protected override void OnExit(ExitEventArgs e) { try { _monitor?.Dispose(); } catch { } base.OnExit(e); }
+    protected override void OnExit(ExitEventArgs e)
+    {
+        try { _monitor?.Dispose(); } catch { }
+        if (_ownsInstance) _instanceMutex?.ReleaseMutex();
+        _instanceMutex?.Dispose();
+        base.OnExit(e);
+    }
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] private static extern uint RegisterWindowMessage(string message);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool PostMessage(nint hwnd, uint msg, nint wParam, nint lParam);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool RegisterHotKey(nint hWnd, int id, uint modifiers, uint key);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool UnregisterHotKey(nint hWnd, int id);
 }

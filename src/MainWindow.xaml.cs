@@ -68,7 +68,11 @@ public partial class MainWindow : Window
             _settings.Color = $"#{picker.Color.R:X2}{picker.Color.G:X2}{picker.Color.B:X2}";
     }
 
-    private void Save_Click(object sender, RoutedEventArgs e) { SettingsService.Save(_settings); StatusText.Text = "Changes saved"; }
+    private void Save_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsService.Save(_settings);
+        Hide();
+    }
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
     protected override void OnClosing(CancelEventArgs e) { if (!_allowClose) { e.Cancel = true; Hide(); } base.OnClosing(e); }
     public void Exit() { _allowClose = true; Close(); }

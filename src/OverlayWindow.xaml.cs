@@ -30,7 +30,13 @@ public partial class OverlayWindow : Window
         Strip.Apply(settings);
         Fit.MaxWidth = SystemParameters.PrimaryScreenWidth;
         Visibility = settings.ShowOverlay && Strip.HasMetrics ? Visibility.Visible : Visibility.Hidden;
-        if (IsLoaded) Position();
+        if (IsLoaded)
+        {
+            // Settle the changed metric width before anchoring to the screen edge.
+            // This runs only for settings changes, never on sampling ticks.
+            UpdateLayout();
+            Position();
+        }
     }
     public void Update(MetricSnapshot snapshot) { if (IsVisible) Strip.Update(snapshot); }
 

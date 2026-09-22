@@ -13,10 +13,12 @@ The installed version includes the .NET runtime, LibreHardwareMonitor dependenci
 
 Version 1.1 adds a monochrome settings UI and a live preview. The preview uses the same metric strip as the overlay and scales down to fit its panel. The overlay fits the primary screen; settings and saved metric selections carry over from previous versions.
 
+Version 1.1.1 fixes strip sizing when removing metrics such as the clock and prevents duplicate app instances from drawing overlapping overlays. Reopening the app reveals the existing settings window.
+
 1. Launch `PulseOverlay.exe` and approve administrator access. Sensor-driver access and ETW FPS collection require it.
 2. Enable only the metrics you want.
 3. Choose a corner, edge spacing, font size, background opacity, and overlay color. **Flush to corner** removes the panel inset so the text itself reaches the selected screen edges; **Comfortable padding** keeps the original spacing.
-4. Select **Save changes**. Closing the settings window leaves the overlay in the notification area.
+4. Select **Save changes** to save and hide settings. The overlay keeps running in the notification area; use its tray menu to reopen settings.
 5. Press `Ctrl+Shift+O` or use the tray menu to toggle the overlay.
 
 FPS follows the foreground application. Borderless-windowed mode is recommended because exclusive-fullscreen and some anti-cheat systems can prevent independent overlays or ETW capture. Pulse Overlay does not inject DLLs into games.
