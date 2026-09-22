@@ -11,6 +11,8 @@ The installed version includes the .NET runtime, LibreHardwareMonitor dependenci
 
 ## Usage
 
+Version 1.1 adds a monochrome settings UI and a live preview. The preview uses the same metric strip as the overlay and scales down to fit its panel. The overlay fits the primary screen; settings and saved metric selections carry over from previous versions.
+
 1. Launch `PulseOverlay.exe` and approve administrator access. Sensor-driver access and ETW FPS collection require it.
 2. Enable only the metrics you want.
 3. Choose a corner, edge spacing, font size, background opacity, and overlay color. **Flush to corner** removes the panel inset so the text itself reaches the selected screen edges; **Comfortable padding** keeps the original spacing.
@@ -18,6 +20,16 @@ The installed version includes the .NET runtime, LibreHardwareMonitor dependenci
 5. Press `Ctrl+Shift+O` or use the tray menu to toggle the overlay.
 
 FPS follows the foreground application. Borderless-windowed mode is recommended because exclusive-fullscreen and some anti-cheat systems can prevent independent overlays or ETW capture. Pulse Overlay does not inject DLLs into games.
+
+## Low-overhead operation
+
+- Existing text controls are reused; sampling does not rebuild the overlay or force its layout.
+- System readings update once per second on a background worker. Disk and network collection stop when disabled; CPU and GPU hardware monitoring stop when their respective metric groups are disabled.
+- When both the overlay and settings are hidden, collection pauses. Opening settings resumes collection for the live preview.
+- PresentMon runs only when FPS is selected and another application is foreground. Capture is filtered to that process, with GPU-duration, input, and display tracking disabled. FPS counts application presents per elapsed second; it is not a measurement of displayed or generated frames. Switching applications can briefly show N/A.
+- FPS processing uses a counter instead of per-process frame queues. Sensor discovery is cached and refreshed every 30 samples. Network adapters are refreshed every 30 samples.
+- On systems with multiple GPUs, readings come from the first detected discrete GPU, falling back to integrated graphics. All GPU fields use that same adapter.
+- The UI uses native WPF controls with no animations or continuously running preview effects. Actual game performance impact depends on the hardware and selected metrics; no zero-overhead claim is made.
 
 ## Temperature accuracy
 
@@ -47,9 +59,11 @@ winget install JRSoftware.InnoSetup
 Then build both deliverables:
 
 ```powershell
-Set-Location 'E:\Codes\PC Performance Overlay\PulseOverlay-GitHub'
+Set-Location 'E:\Codes\PC Performance Overlay\Source Code'
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
+
+For only the portable build, use `powershell -ExecutionPolicy Bypass -File .\build.ps1 -SkipInstaller`; Inno Setup is not needed for this option.
 
 NuGet dependencies are declared in `src\PulseOverlay.csproj`; do not manually copy them. The bundled `src\Tools\PresentMon.exe` is the official Intel PresentMon 2.4.1 x64 release.
 

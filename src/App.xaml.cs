@@ -15,6 +15,7 @@ public partial class App : System.Windows.Application
     private MonitoringCoordinator _monitor = null!;
     private Forms.NotifyIcon _tray = null!;
     private HwndSource? _hotkeyWindow;
+    private int _updatePending;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -24,15 +25,26 @@ public partial class App : System.Windows.Application
         _overlay = new OverlayWindow(); _overlay.Show(); _overlay.Apply(_settings);
         CreateTray(); RegisterOverlayHotkey();
         _monitor = new MonitoringCoordinator();
-        _monitor.Updated += snapshot => Dispatcher.BeginInvoke(() =>
+        _monitor.Updated += snapshot =>
         {
-            _overlay.Update(snapshot); _settingsWindow.SetSensorStatus(snapshot.SensorStatus);
-        });
+            if (Interlocked.Exchange(ref _updatePending, 1) != 0) return;
+            Dispatcher.BeginInvoke(() =>
+            {
+                try { _overlay.Update(snapshot); _settingsWindow.UpdateSnapshot(snapshot); }
+                finally { Volatile.Write(ref _updatePending, 0); }
+            });
+        };
+        _monitor.Configure(_settings, false);
         _monitor.Start();
         if (!e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase)) _settingsWindow.Show();
     }
 
-    public void ApplySettings() => _overlay.Apply(_settings);
+    public void ApplySettings()
+    {
+        _overlay?.Apply(_settings);
+        UpdateMonitoring();
+    }
+    public void UpdateMonitoring() => _monitor?.Configure(_settings, _settingsWindow.IsVisible);
 
     private void CreateTray()
     {
@@ -46,7 +58,7 @@ public partial class App : System.Windows.Application
     }
 
     private void OpenSettings() { _settingsWindow.Show(); _settingsWindow.WindowState = WindowState.Normal; _settingsWindow.Activate(); }
-    private void ToggleOverlay() { _settings.ShowOverlay = !_settings.ShowOverlay; ApplySettings(); }
+    private void ToggleOverlay() => _settings.ShowOverlay = !_settings.ShowOverlay;
 
     private void RegisterOverlayHotkey()
     {

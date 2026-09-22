@@ -8,8 +8,8 @@ public sealed class AppSettings : INotifyPropertyChanged
     private bool _showFps = true, _showCpuUsage = true, _showCpuTemp = true, _showGpuUsage = true,
         _showGpuTemp = true, _showRam = true, _showVram, _showDisk = true, _showNetwork = true,
         _showCpuClock, _showGpuClock, _showPower, _showClock, _showOverlay = true, _startWithWindows;
-    private string _position = "Top Right", _edgeSpacing = "Flush to corner", _color = "#53E2B1";
-    private double _fontSize = 16, _opacity = 0.88;
+    private string _position = "Top Right", _edgeSpacing = "Flush to corner", _color = "#FFFFFF";
+    private double _fontSize = 13, _opacity = 0.88;
 
     public bool ShowFps { get => _showFps; set => Set(ref _showFps, value); }
     public bool ShowCpuUsage { get => _showCpuUsage; set => Set(ref _showCpuUsage, value); }

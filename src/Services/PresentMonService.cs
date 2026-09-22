@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.IO;
 
@@ -7,61 +7,90 @@ namespace PulseOverlay.Services;
 
 public sealed class PresentMonService : IDisposable
 {
-    private readonly ConcurrentDictionary<uint, ConcurrentQueue<long>> _frames = new();
     private Process? _process;
+    private uint _target;
+    private long _lastSample;
+    private long _retryAfter;
+    private int _frames;
 
-    public void Start()
+    public double? Sample(bool enabled)
+    {
+        GetWindowThreadProcessId(GetForegroundWindow(), out uint pid);
+        if (!enabled || pid == 0 || pid == Environment.ProcessId) { Stop(); return null; }
+        long now = Stopwatch.GetTimestamp();
+        if (_target != pid || _process is null || _process.HasExited)
+        {
+            if (_target == pid && now < _retryAfter) return null;
+            Stop(); _target = pid;
+            _retryAfter = now + 10 * Stopwatch.Frequency;
+            Start(pid); _lastSample = now;
+            return null;
+        }
+        int frames = Interlocked.Exchange(ref _frames, 0);
+        double seconds = (now - _lastSample) / (double)Stopwatch.Frequency;
+        _lastSample = now;
+        return frames == 0 || seconds <= 0 ? null : frames / seconds;
+    }
+
+    private void Start(uint pid)
     {
         string exe = Path.Combine(AppContext.BaseDirectory, "Tools", "PresentMon.exe");
         if (!File.Exists(exe)) return;
         try
         {
-            _process = new Process { StartInfo = new ProcessStartInfo(exe,
-                "--output_stdout --v1_metrics --no_console_stats --exclude PulseOverlay.exe --stop_existing_session --session_name PulseOverlay")
+            var process = new Process { StartInfo = new ProcessStartInfo(exe,
+                $"--process_id {pid} --output_stdout --v1_metrics --no_console_stats --no_track_gpu --no_track_input --no_track_display --terminate_on_proc_exit --stop_existing_session --session_name PulseOverlay-{Environment.ProcessId}")
             { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true } };
-            _process.OutputDataReceived += OnLine;
-            _process.Start(); _process.BeginOutputReadLine();
+            _process = process;
+            process.OutputDataReceived += OnLine;
+            process.ErrorDataReceived += (_, _) => { };
+            process.Start(); process.BeginOutputReadLine(); process.BeginErrorReadLine();
         }
-        catch { _process = null; }
+        catch { StopProcess(); }
     }
 
     private void OnLine(object sender, DataReceivedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(e.Data) || e.Data.StartsWith("Application,")) return;
-        var fields = ParseCsv(e.Data);
-        if (fields.Count < 2 || !uint.TryParse(fields[1], out uint pid)) return;
-        long now = Stopwatch.GetTimestamp();
-        var q = _frames.GetOrAdd(pid, _ => new()); q.Enqueue(now);
-        long cutoff = now - 2 * Stopwatch.Frequency;
-        while (q.TryPeek(out long old) && old < cutoff) q.TryDequeue(out _);
-    }
-
-    public double? GetForegroundFps()
-    {
-        GetWindowThreadProcessId(GetForegroundWindow(), out uint pid);
-        if (!_frames.TryGetValue(pid, out var q)) return null;
-        long now = Stopwatch.GetTimestamp(), cutoff = now - Stopwatch.Frequency;
-        while (q.TryPeek(out long old) && old < cutoff) q.TryDequeue(out _);
-        return q.Count == 0 ? null : q.Count;
-    }
-
-    private static List<string> ParseCsv(string line)
-    {
-        var result = new List<string>(); var current = new System.Text.StringBuilder(); bool quoted = false;
-        foreach (char c in line)
+        if (!ReferenceEquals(sender, _process) || string.IsNullOrEmpty(e.Data)) return;
+        // Parse only the PID column, without per-frame lists, strings or queue nodes.
+        ReadOnlySpan<char> row = e.Data.AsSpan();
+        bool quoted = false;
+        for (int i = 0; i < row.Length; i++)
         {
-            if (c == '"') quoted = !quoted;
-            else if (c == ',' && !quoted) { result.Add(current.ToString()); current.Clear(); }
-            else current.Append(c);
+            if (row[i] == '"') quoted = !quoted;
+            else if (row[i] == ',' && !quoted)
+            {
+                var rest = row[(i + 1)..];
+                int end = rest.IndexOf(',');
+                if (end > 0 && uint.TryParse(rest[..end], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint pid) && pid == _target)
+                    Interlocked.Increment(ref _frames);
+                break;
+            }
         }
-        result.Add(current.ToString()); return result;
     }
 
-    public void Dispose()
+    private void StopProcess()
     {
-        try { if (_process is { HasExited: false }) _process.Kill(true); } catch { }
-        _process?.Dispose();
+        var process = _process; _process = null;
+        if (process is null) return;
+        process.OutputDataReceived -= OnLine;
+        try
+        {
+            if (!process.HasExited)
+            {
+                using var stop = Process.Start(new ProcessStartInfo(process.StartInfo.FileName,
+                    $"--terminate_existing_session --session_name PulseOverlay-{Environment.ProcessId}")
+                    { UseShellExecute = false, CreateNoWindow = true });
+                if (stop is not null && !stop.WaitForExit(2000)) stop.Kill();
+                if (!process.WaitForExit(2000)) process.Kill(true);
+                process.WaitForExit();
+            }
+        }
+        catch { try { if (!process.HasExited) process.Kill(true); } catch { } }
+        process.Dispose();
     }
+    private void Stop() { StopProcess(); _target = 0; Interlocked.Exchange(ref _frames, 0); }
+    public void Dispose() => Stop();
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint window, out uint processId);
 }
