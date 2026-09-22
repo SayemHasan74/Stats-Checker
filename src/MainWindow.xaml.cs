@@ -51,6 +51,7 @@ public partial class MainWindow : Window
 
     private void SettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
+        SaveButton.Visibility = Visibility.Visible;
         if (e.PropertyName == nameof(AppSettings.Color)) RefreshColor();
         if (IsVisible) RefreshPreview();
         ((App)System.Windows.Application.Current).ApplySettings();
@@ -71,7 +72,7 @@ public partial class MainWindow : Window
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         SettingsService.Save(_settings);
-        Hide();
+        SaveButton.Visibility = Visibility.Hidden;
     }
     private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
     protected override void OnClosing(CancelEventArgs e) { if (!_allowClose) { e.Cancel = true; Hide(); } base.OnClosing(e); }

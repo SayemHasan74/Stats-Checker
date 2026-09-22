@@ -12,16 +12,44 @@ public sealed class PresentMonService : IDisposable
     private long _lastSample;
     private long _retryAfter;
     private int _frames;
+    private readonly DirectPresentService _direct = new();
+    private long _targetSince;
+    private string? _captureError;
+    public string Status { get; private set; } = "FPS: disabled";
 
     public double? Sample(bool enabled)
     {
         GetWindowThreadProcessId(GetForegroundWindow(), out uint pid);
-        if (!enabled || pid == 0 || pid == Environment.ProcessId) { Stop(); return null; }
+        if (!enabled || pid == 0 || pid == Environment.ProcessId)
+        {
+            Stop(); _direct.Sample(0);
+            Status = enabled ? "FPS: focus the game" : "FPS: disabled";
+            return null;
+        }
         long now = Stopwatch.GetTimestamp();
+        if (_target != pid)
+        {
+            Stop(); _target = pid; _targetSince = now; _retryAfter = 0;
+            _captureError = null;
+        }
+        // Use the narrow DirectX event stream first. PresentMon remains the
+        // fallback for other graphics APIs, after a short capture warm-up.
+        double? directFps = _direct.Sample(pid);
+        if (directFps is not null)
+        {
+            StopProcess(); Interlocked.Exchange(ref _frames, 0);
+            Status = _direct.Status;
+            return directFps;
+        }
+        if (Stopwatch.GetElapsedTime(_targetSince).TotalSeconds < 4)
+        {
+            Status = _direct.Status;
+            return null;
+        }
         if (_target != pid || _process is null || _process.HasExited)
         {
             if (_target == pid && now < _retryAfter) return null;
-            Stop(); _target = pid;
+            StopProcess(); Interlocked.Exchange(ref _frames, 0);
             _retryAfter = now + 10 * Stopwatch.Frequency;
             Start(pid); _lastSample = now;
             return null;
@@ -29,6 +57,7 @@ public sealed class PresentMonService : IDisposable
         int frames = Interlocked.Exchange(ref _frames, 0);
         double seconds = (now - _lastSample) / (double)Stopwatch.Frequency;
         _lastSample = now;
+        Status = _captureError ?? (frames == 0 ? "FPS: no frame events received from this application" : "FPS: PresentMon capture");
         return frames == 0 || seconds <= 0 ? null : frames / seconds;
     }
 
@@ -43,7 +72,11 @@ public sealed class PresentMonService : IDisposable
             { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true } };
             _process = process;
             process.OutputDataReceived += OnLine;
-            process.ErrorDataReceived += (_, _) => { };
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data) && e.Data.Contains("error:", StringComparison.OrdinalIgnoreCase))
+                    _captureError = "FPS capture could not start: " + e.Data.Trim();
+            };
             process.Start(); process.BeginOutputReadLine(); process.BeginErrorReadLine();
         }
         catch { StopProcess(); }
@@ -90,7 +123,7 @@ public sealed class PresentMonService : IDisposable
         process.Dispose();
     }
     private void Stop() { StopProcess(); _target = 0; Interlocked.Exchange(ref _frames, 0); }
-    public void Dispose() => Stop();
+    public void Dispose() { Stop(); _direct.Dispose(); }
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint window, out uint processId);
 }

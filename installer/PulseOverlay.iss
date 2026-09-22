@@ -1,5 +1,5 @@
 #define MyAppName "Pulse Overlay"
-#define MyAppVersion "1.1.1"
+#define MyAppVersion "1.1.2"
 #define MyAppExeName "PulseOverlay.exe"
 
 [Setup]

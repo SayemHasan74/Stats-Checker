@@ -45,7 +45,8 @@ public sealed class MonitoringCoordinator : IDisposable
                         Updated?.Invoke(new MetricSnapshot(frameRate, s.CpuUsage, h.CpuTemperature,
                             h.GpuUsage, h.GpuTemperature, s.RamUsedGb, s.RamTotalGb, h.VramUsedGb, h.VramTotalGb,
                             s.DiskActivity, s.DiskMbps, s.NetworkDownloadMbps, s.NetworkUploadMbps,
-                            h.CpuClockMhz, h.GpuClockMhz, h.CpuPowerWatts, h.GpuPowerWatts, h.Status));
+                            h.CpuClockMhz, h.GpuClockMhz, h.CpuPowerWatts, h.GpuPowerWatts,
+                            o.Fps ? h.Status + " | " + fps.Status : h.Status));
                     }
                 }
                 catch (Exception ex)

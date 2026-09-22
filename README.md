@@ -15,10 +15,12 @@ Version 1.1 adds a monochrome settings UI and a live preview. The preview uses t
 
 Version 1.1.1 fixes strip sizing when removing metrics such as the clock and prevents duplicate app instances from drawing overlapping overlays. Reopening the app reveals the existing settings window.
 
+Version 1.1.2 adds DirectX present-event FPS capture, reduces metric spacing, and right-aligns values in reserved-width slots so the final value reaches the selected corner. Memory slots reserve room for the detected capacity. Saving keeps settings open and hides only the save button until the next edit.
+
 1. Launch `PulseOverlay.exe` and approve administrator access. Sensor-driver access and ETW FPS collection require it.
 2. Enable only the metrics you want.
 3. Choose a corner, edge spacing, font size, background opacity, and overlay color. **Flush to corner** removes the panel inset so the text itself reaches the selected screen edges; **Comfortable padding** keeps the original spacing.
-4. Select **Save changes** to save and hide settings. The overlay keeps running in the notification area; use its tray menu to reopen settings.
+4. Select **Save changes** to save. Settings stay open; only the save button hides until another edit. Use **Hide settings** to send the window to the tray.
 5. Press `Ctrl+Shift+O` or use the tray menu to toggle the overlay.
 
 FPS follows the foreground application. Borderless-windowed mode is recommended because exclusive-fullscreen and some anti-cheat systems can prevent independent overlays or ETW capture. Pulse Overlay does not inject DLLs into games.
@@ -28,7 +30,7 @@ FPS follows the foreground application. Borderless-windowed mode is recommended 
 - Existing text controls are reused; sampling does not rebuild the overlay or force its layout.
 - System readings update once per second on a background worker. Disk and network collection stop when disabled; CPU and GPU hardware monitoring stop when their respective metric groups are disabled.
 - When both the overlay and settings are hidden, collection pauses. Opening settings resumes collection for the live preview.
-- PresentMon runs only when FPS is selected and another application is foreground. Capture is filtered to that process, with GPU-duration, input, and display tracking disabled. FPS counts application presents per elapsed second; it is not a measurement of displayed or generated frames. Switching applications can briefly show N/A.
+- FPS uses a small, process-filtered DirectX ETW session to count successful Present calls, excluding test calls and failed presents. This supports the DXGI logging events emitted on Windows builds where PresentMon receives no analytic present events. Frame timing comes from event timestamps, using the busiest swapchain. If no DirectX frames arrive during warm-up, PresentMon is started as a fallback for other graphics APIs, with GPU-duration, input, and display tracking disabled. FPS measures application presents, not displayed or generated frames. Switching applications can briefly show N/A. Capture errors appear under Sensor Details.
 - FPS processing uses a counter instead of per-process frame queues. Sensor discovery is cached and refreshed every 30 samples. Network adapters are refreshed every 30 samples.
 - On systems with multiple GPUs, readings come from the first detected discrete GPU, falling back to integrated graphics. All GPU fields use that same adapter.
 - The UI uses native WPF controls with no animations or continuously running preview effects. Actual game performance impact depends on the hardware and selected metrics; no zero-overhead claim is made.
@@ -80,4 +82,5 @@ NuGet dependencies are declared in `src\PulseOverlay.csproj`; do not manually co
 
 - LibreHardwareMonitorLib 0.9.6: Mozilla Public License 2.0
 - Intel PresentMon 2.4.1: MIT License
+- Microsoft.Diagnostics.Tracing.TraceEvent 3.2.6: MIT License
 - .NET 9 runtime: Microsoft distribution terms
