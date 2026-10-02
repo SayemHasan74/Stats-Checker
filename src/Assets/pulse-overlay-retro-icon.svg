@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Retro performance monitor icon">
+  <rect width="512" height="512" fill="#000"/>
+  <!-- A one-bit CRT monitor with a three-step rising performance trace. -->
+  <g fill="#fff">
+    <path d="M80 104h352v240h-88v32h48v32H120v-32h48v-32H80V104zm32 32v176h288V136H112z"/>
+    <path d="M152 256h48v-32h48v-32h48v-32h48v32h-48v32h-48v32h-48v32h-48v32h-48v-32h48v-32z"/>
+  </g>
+</svg>

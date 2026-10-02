@@ -12,6 +12,8 @@ public sealed class HardwareReadings
 public sealed class HardwareMonitorService : IDisposable
 {
     private readonly Computer _computer;
+    private readonly bool _cpuEnabled;
+    private string? _driverError;
     private bool _opened;
     private int _reads;
     private readonly List<ISensor> _cpuTemp = [], _cpuFallback = [], _cpuPower = [], _powerFallback = [];
@@ -20,6 +22,7 @@ public sealed class HardwareMonitorService : IDisposable
 
     public HardwareMonitorService(bool cpu, bool gpu)
     {
+        _cpuEnabled = cpu;
         _computer = new Computer
         {
             IsCpuEnabled = cpu, IsGpuEnabled = gpu,
@@ -29,6 +32,7 @@ public sealed class HardwareMonitorService : IDisposable
 
     public void Open()
     {
+        if (_cpuEnabled) _driverError = CpuSensorDriver.EnsureInstalled();
         try { _computer.Open(); _opened = true; }
         catch { _computer.Close(); }
     }
@@ -46,7 +50,7 @@ public sealed class HardwareMonitorService : IDisposable
             CpuClockMhz = Value(_cpuClock), GpuTemperature = Value(_gpuTemp),
             GpuUsage = Value(_gpuLoad), GpuClockMhz = Value(_gpuClock), GpuPowerWatts = Value(_gpuPower),
             VramUsedGb = Value(_vramUsed) / 1024, VramTotalGb = Value(_vramTotal) / 1024,
-            Status = _status
+            Status = _driverError is null ? _status : _driverError + " | " + _status
         };
     }
 

@@ -28,7 +28,7 @@ public sealed class MetricStrip : Border
         new("CPU CLK", s => s.ShowCpuClock, m => Number(m.CpuClockMhz, "0", "MHz"), 7),
         new("GPU CLK", s => s.ShowGpuClock, m => Number(m.GpuClockMhz, "0", "MHz"), 7),
         new("PWR", s => s.ShowPower, m => $"C {Number(m.CpuPowerWatts, "0", "W")} G {Number(m.GpuPowerWatts, "0", "W")}", 15),
-        new("TIME", s => s.ShowClock, _ => DateTime.Now.ToString("HH:mm"), 5)
+        new("TIME", s => s.ShowClock, _ => DateTime.Now.ToString("h:mm tt"), 5)
     ];
     private readonly StackPanel _panel = new() { Orientation = System.Windows.Controls.Orientation.Horizontal };
     private readonly List<(TextBlock Text, Definition Metric)> _values = [];

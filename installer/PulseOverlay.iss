@@ -9,7 +9,7 @@ AppVersion={#MyAppVersion}
 AppPublisher=Pulse Overlay
 DefaultDirName={autopf}\Pulse Overlay
 DefaultGroupName=Pulse Overlay
-OutputDir=..\Deliverables
+OutputDir=..\..
 OutputBaseFilename=PulseOverlay-Installer
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -24,7 +24,7 @@ SetupLogging=yes
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "..\Deliverables\Installed Version\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\Installed Version\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Pulse Overlay"; Filename: "{app}\{#MyAppExeName}"

@@ -2,7 +2,7 @@ param([switch]$SkipInstaller)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $project = Join-Path $root 'src\PulseOverlay.csproj'
-$publish = Join-Path $root 'Deliverables\Installed Version'
+$publish = Join-Path (Split-Path -Parent $root) 'Installed Version'
 $dotnet = Join-Path $env:LOCALAPPDATA 'Microsoft\dotnet-sdk\dotnet.exe'
 $iscc = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'
 
